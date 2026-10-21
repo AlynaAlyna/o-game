@@ -14,6 +14,19 @@
 <script>
 (() => {
   const insideVK = new URLSearchParams(location.search).has('vk_app_id');
+  let sharePending = false;
+  window.addEventListener('message', async event => {
+    const frame = document.getElementById('codex-visualization');
+    if (!frame || event.source !== frame.contentWindow || event.data?.type !== 'o-game:share-request' || sharePending) return;
+    const reply = status => frame.contentWindow.postMessage({type:'o-game:share-result',status}, '*');
+    if (!insideVK || !window.vkBridge) { reply('fallback'); return; }
+    sharePending = true;
+    try {
+      await window.vkBridge.send('VKWebAppShare', {link:'https://vk.com/app54842154'});
+      reply('opened');
+    } catch (_) { reply('fallback'); }
+    finally { sharePending = false; }
+  });
   if (!insideVK) return;
   if (!window.vkBridge || typeof window.vkBridge.send !== 'function') {
     console.error('VK Bridge did not load. Check access to the script CDN.');
@@ -1897,7 +1910,7 @@ html&gt;body{padding:0}&lt;/style&gt;
 (()=&gt;{
  const root=document.getElementById(&#x27;o-game&#x27;);
  const q=s=&gt;root.querySelector(s), field=q(&#x27;#og-field&#x27;);
- let score=0,remaining=30,deadline=0,timer=null,playing=false,target=-1,best=0,round=0;
+ let score=0,remaining=30,deadline=0,timer=null,playing=false,target=-1,best=0,round=0,shareCleanup=()=&gt;{};
  const saved=window.openai?.widgetState;
  if(saved?.privateContent?.best)best=Number(saved.privateContent.best)||0;
  const save=()=&gt;{if(window.openai?.setWidgetState)window.openai.setWidgetState({modelContent:{game:&#x27;Ну ещё одно О!&#x27;,lastScore:score},privateContent:{best}}).catch(()=&gt;{});};
@@ -1923,12 +1936,35 @@ html&gt;body{padding:0}&lt;/style&gt;
   tick();
  }
  function tick(){remaining=Math.max(0,(deadline-performance.now())/1000);update();if(remaining&lt;=0)finish();}
- function start(){clearInterval(timer);score=0;round=0;remaining=30;playing=true;deadline=performance.now()+30000;q(&#x27;#og-note&#x27;).textContent=&#x27;Найди взгляд в сторону&#x27;;q(&#x27;#og-instruction&#x27;).innerHTML=&#x27;Нажимай на О!, которое смотрит в сторону.&lt;br&gt;За ошибку — минус две секунды.&#x27;;draw();update();timer=setInterval(tick,100);}
+ function start(){shareCleanup();clearInterval(timer);score=0;round=0;remaining=30;playing=true;deadline=performance.now()+30000;q(&#x27;#og-note&#x27;).textContent=&#x27;Найди взгляд в сторону&#x27;;q(&#x27;#og-instruction&#x27;).innerHTML=&#x27;Нажимай на О!, которое смотрит в сторону.&lt;br&gt;За ошибку — минус две секунды.&#x27;;draw();update();timer=setInterval(tick,100);}
  function finish(){
   if(!playing)return;playing=false;clearInterval(timer);remaining=0;update();best=Math.max(best,score);bestLabel();save();q(&#x27;#og-note&#x27;).textContent=&#x27;Время!&#x27;;
-  field.innerHTML=&#x27;&lt;div class=&quot;og-result&quot;&gt;&lt;div class=&quot;og-kicker&quot;&gt;ТВОЙ РЕЗУЛЬТАТ&lt;/div&gt;&lt;div class=&quot;og-result-number&quot;&gt;&#x27;+score+&#x27; О!&lt;/div&gt;&lt;h2&gt;&#x27;+(score&gt;=15?&#x27;О! Вот это взгляд.&#x27;:score&gt;=7?&#x27;Зорко. Очень зорко.&#x27;:&#x27;О! Уже хочется ещё?&#x27;)+&#x27;&lt;/h2&gt;&lt;p&gt;Сможет ли друг найти больше?&lt;/p&gt;&lt;div class=&quot;og-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;og-primary cursor-interaction&quot; id=&quot;og-again&quot;&gt;Ещё раз →&lt;/button&gt;&lt;button type=&quot;button&quot; class=&quot;og-secondary cursor-interaction&quot; id=&quot;og-challenge&quot;&gt;Вызвать друга&lt;/button&gt;&lt;/div&gt;&lt;div id=&quot;og-share&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;&lt;div class=&quot;og-business&quot;&gt;Ты пришёл посмотреть — и остался играть.&lt;br&gt;&lt;b&gt;Так работают игровые механики.&lt;/b&gt;&lt;br&gt;Давай придумаем игру для твоего бизнеса.&lt;br&gt;&lt;a href=&quot;https://vk.me/oigra?ref=o_game&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot; class=&quot;og-secondary cursor-interaction&quot; id=&quot;og-contact&quot;&gt;Хочу игру для бизнеса →&lt;/a&gt;&lt;div id=&quot;og-contact-note&quot; aria-live=&quot;polite&quot;&gt;Откроются сообщения сообщества. Напиши «Хочу игру для бизнеса» — обсудим твою задачу.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&#x27;;
+  field.innerHTML=&#x27;&lt;div class=&quot;og-result&quot;&gt;&lt;div class=&quot;og-kicker&quot;&gt;ТВОЙ РЕЗУЛЬТАТ&lt;/div&gt;&lt;div class=&quot;og-result-number&quot;&gt;&#x27;+score+&#x27; О!&lt;/div&gt;&lt;h2&gt;&#x27;+(score&gt;=15?&#x27;О! Вот это взгляд.&#x27;:score&gt;=7?&#x27;Зорко. Очень зорко.&#x27;:&#x27;О! Уже хочется ещё?&#x27;)+&#x27;&lt;/h2&gt;&lt;p&gt;Попробуешь побить свой рекорд?&lt;/p&gt;&lt;div class=&quot;og-actions&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;og-primary cursor-interaction&quot; id=&quot;og-again&quot;&gt;Ещё раз →&lt;/button&gt;&lt;/div&gt;&lt;div id=&quot;og-share&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;&lt;div class=&quot;og-business&quot;&gt;Ты пришёл посмотреть — и остался играть.&lt;br&gt;&lt;b&gt;Так работают игровые механики.&lt;/b&gt;&lt;br&gt;Давай придумаем игру для твоего бизнеса.&lt;br&gt;&lt;a href=&quot;https://vk.me/oigra?ref=o_game&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot; class=&quot;og-secondary cursor-interaction&quot; id=&quot;og-contact&quot;&gt;Хочу игру для бизнеса →&lt;/a&gt;&lt;div id=&quot;og-contact-note&quot; aria-live=&quot;polite&quot;&gt;Откроются сообщения сообщества. Напиши «Хочу игру для бизнеса» — обсудим твою задачу.&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&#x27;;
   q(&#x27;#og-again&#x27;).onclick=start;
-  q(&#x27;#og-challenge&#x27;).onclick=()=&gt;{q(&#x27;#og-share&#x27;).textContent=&#x27;«Я нашёл &#x27;+score+&#x27; О! за 30 секунд. Побьёшь мой результат?» — текст для приглашения. Отправка появится в версии для ВК.&#x27;;q(&#x27;#og-share&#x27;).style.marginTop=&#x27;14px&#x27;;};
+  const invite=document.createElement(&#x27;button&#x27;);
+  invite.type=&#x27;button&#x27;;invite.id=&#x27;og-challenge&#x27;;invite.className=&#x27;og-secondary cursor-interaction&#x27;;invite.textContent=&#x27;Позвать друга →&#x27;;
+  q(&#x27;.og-actions&#x27;).appendChild(invite);
+  const shareNote=q(&#x27;#og-share&#x27;);
+  const fallback=()=&gt;{
+   invite.disabled=false;
+   shareNote.textContent=&#x27;Отправь другу ссылку на игру: &#x27;;
+   const link=document.createElement(&#x27;a&#x27;);link.href=&#x27;https://vk.com/share.php?url=&#x27;+encodeURIComponent(&#x27;https://vk.com/app54842154&#x27;);link.target=&#x27;_blank&#x27;;link.rel=&#x27;noopener noreferrer&#x27;;link.textContent=&#x27;Поделиться через ВК&#x27;;shareNote.appendChild(link);
+  };
+  let shareTimeout=null;
+  const onShareResult=event=&gt;{
+   if(event.source!==window.parent||event.data?.type!==&#x27;o-game:share-result&#x27;)return;
+   clearTimeout(shareTimeout);invite.disabled=false;
+   if(event.data.status===&#x27;opened&#x27;)shareNote.textContent=&#x27;Окно ВК закрыто. Если ты подтвердил отправку, друг получит ссылку на игру.&#x27;;
+   else fallback();
+  };
+  window.addEventListener(&#x27;message&#x27;,onShareResult);
+  shareCleanup=()=&gt;{clearTimeout(shareTimeout);window.removeEventListener(&#x27;message&#x27;,onShareResult);};
+  invite.onclick=()=&gt;{
+   invite.disabled=true;shareNote.textContent=&#x27;Открываем окно ВК…&#x27;;
+   if(window.parent===window){fallback();return;}
+   window.parent.postMessage({type:&#x27;o-game:share-request&#x27;},&#x27;*&#x27;);
+   clearTimeout(shareTimeout);shareTimeout=setTimeout(fallback,12000);
+  };
  }
  q(&#x27;#og-start&#x27;).addEventListener(&#x27;click&#x27;,start);
 })();
