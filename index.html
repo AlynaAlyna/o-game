@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-visualize-standalone>
+<html lang="ru" data-visualize-standalone>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,7 +10,22 @@
 
 </head>
 <body>
-<iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Ну ещё одно О! — Игровые механики для бизнеса" data-srcdoc="&lt;!doctype html&gt;
+<script src="https://cdn.jsdelivr.net/npm/@vkontakte/vk-bridge@2.14.0/dist/browser.min.js"></script>
+<script>
+(() => {
+  const insideVK = new URLSearchParams(location.search).has('vk_app_id');
+  if (!insideVK) return;
+  if (!window.vkBridge || typeof window.vkBridge.send !== 'function') {
+    console.error('VK Bridge did not load. Check access to the script CDN.');
+    return;
+  }
+  // Must run in the outer document, whose parent is VK, before game interaction.
+  window.vkBridge.send('VKWebAppInit').catch(error => {
+    console.error('VK initialization failed:', error && error.error_type);
+  });
+})();
+</script>
+<iframe id="codex-visualization" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" title="Ну ещё одно О! — Игровые механики для бизнеса" data-srcdoc="&lt;!doctype html&gt;
 &lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
 &lt;head&gt;
 &lt;meta charset=&quot;utf-8&quot;&gt;
